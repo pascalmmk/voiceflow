@@ -1,0 +1,18 @@
+PASS Bypass preserves every sample and channel
+PASS RMS normalization reaches target
+PASS Compressor reduces sustained loud speech-level audio
+PASS Stereo-linked compression preserves channel balance
+PASS Peak protection caps normalization gain
+PASS Silence detection with opposite-phase stereo
+PASS Pause removal preserves edge padding
+PASS Unchecking cuts restores the original duration
+PASS Overlapping cuts merge and crossfade exactly once
+PASS Breath heuristic finds a synthetic isolated noise burst
+PASS Breath heuristic preserves a voiced test tone
+PASS Analysis honors cancellation
+PASS Rejects settings that remove the entire recording
+PASS WAV roundtrip preserves metadata and length
+PASS 16-bit export has expected quantization accuracy
+PASS Malformed WAV is rejected
+All 16 checks passed.
+PASS UI analyze/process, cut review, stale result invalidation, reprocessing, and exported WAV roundtrip.

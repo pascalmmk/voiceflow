@@ -1,0 +1,17 @@
+# Generated .NET output
+**/bin/
+**/obj/
+/App/
+/test-output/
+
+# Editor and user settings
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local credentials and temporary files
+.env
+.env.*
+*.tmp
+*.log
