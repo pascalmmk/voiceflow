@@ -10,7 +10,7 @@ public sealed record Audio(float[] Samples, int Rate, int Channels)
 public sealed record Cut(int Start, int End, string Kind);
 public sealed record Settings(bool Silence, double SilenceDb, int MinimumPauseMs, int PaddingMs,
     bool Breaths, int BreathStrength, bool Compression, double ThresholdDb, double Ratio,
-    bool Normalize, double TargetDb);
+    bool Normalize, double TargetDb, bool RetroRadio = false);
 public sealed record Result(Audio Audio, double PeakDb, double RmsDb, double GainDb, bool Limited);
 
 public static class Wave
@@ -218,6 +218,7 @@ public static class Dsp
                 for (int c = 0; c < a.Channels; c++) samples[i * a.Channels + c] *= (float)gain;
             }
         }
+        if (s.RetroRadio) ApplyRetroRadio(samples, a.Rate, a.Channels, token);
         double square = 0, max = 0;
         foreach (float x in samples) { square += x * (double)x; max = Math.Max(max, Math.Abs(x)); }
         double rmsValue = Math.Sqrt(square / samples.Length), gainValue = 1;
@@ -234,5 +235,48 @@ public static class Dsp
             }
         }
         return new Result(new Audio(samples, a.Rate, a.Channels), Db(max * gainValue), Db(rmsValue * gainValue), Db(gainValue), limited);
+    }
+
+    // A stylized old-game radio effect, not an emulation of a specific game codec.
+    static void ApplyRetroRadio(float[] samples, int rate, int channels, CancellationToken token)
+    {
+        var bass = new double[channels];
+        var treble = new double[channels];
+        var treble2 = new double[channels];
+        var held = new float[channels];
+        double highPass = 1 - Math.Exp(-2 * Math.PI * 300 / rate);
+        double lowPass = 1 - Math.Exp(-2 * Math.PI * 3000 / rate);
+        double attack = Math.Exp(-1.0 / (rate * .001));
+        double release = Math.Exp(-1.0 / (rate * .060));
+        double envelope = 0, phase = 1, step = Math.Min(11025.0, rate) / rate;
+        for (int i = 0; i < samples.Length / channels; i++)
+        {
+            if (i % 8192 == 0) token.ThrowIfCancellationRequested();
+            double peak = 0;
+            for (int c = 0; c < channels; c++)
+            {
+                double x = samples[i * channels + c];
+                bass[c] += highPass * (x - bass[c]);
+                treble[c] += lowPass * (x - bass[c] - treble[c]);
+                treble2[c] += lowPass * (treble[c] - treble2[c]);
+                peak = Math.Max(peak, Math.Abs(treble2[c]));
+            }
+            double coefficient = peak > envelope ? attack : release;
+            envelope = coefficient * envelope + (1 - coefficient) * peak;
+            // Fixed 20:1 compression at -30 dBFS, with 20 dB makeup gain.
+            double gain = Amp(20 - Math.Max(0, Db(envelope) + 30) * .95);
+            bool capture = phase >= 1;
+            if (capture) phase -= 1;
+            for (int c = 0; c < channels; c++)
+            {
+                if (capture)
+                {
+                    double driven = .85 * Math.Tanh(treble2[c] * gain * 2);
+                    held[c] = (float)(Math.Round(driven * 127) / 127);
+                }
+                samples[i * channels + c] = held[c];
+            }
+            phase += step;
+        }
     }
 }

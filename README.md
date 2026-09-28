@@ -21,6 +21,8 @@ Changing settings clears the detected cuts and requires another analysis. Changi
 
 ## Controls
 
+- **Half-Life-style radio (heavy / gritty):** Optional old-game voice effect, off by default. Adds a narrow radio tone, fixed 20:1 compression at −30 dBFS (1 ms attack / 60 ms release), 20 dB makeup gain, soft distortion, and roughly 8-bit quantization with sample-and-hold updates at up to 11,025 Hz. It runs after ordinary compression and before normalization, and works even if ordinary compression is disabled. The exported sample rate, channels, and duration are preserved. This is a stylized approximation, not an exact recreation of Half-Life's audio pipeline. Enable it, click **Analyze & process**, then **Play result** or **Export WAV**.
+
 - **Silence threshold:** Sections below this level count as quiet. Lower values such as −50 dBFS protect more quiet speech; higher values remove more low-level sound.
 - **Minimum silence:** Shorter values tighten more pauses.
 - **Keep at each speech edge:** Padding protects word endings and beginnings. Set to zero for tighter edits. Cuts use a short crossfade to soften joins.
@@ -484,7 +486,7 @@ Check(Math.Abs(normalized.RmsDb + 18) < .01,
 
 This copies baseline settings, enables normalization, supplies an empty cut list (`[]`), and checks that RMS is within 0.01 dB of −18 dBFS. `default` supplies a cancellation token with no cancellation requested.
 
-The 16 audio checks cover bypass preservation, RMS normalization, compression, stereo balance, peak protection, silence detection, padding, restoring unchecked cuts, overlapping cuts, basic breath heuristics, cancellation, whole-recording removal rejection, WAV roundtrip metadata, quantization accuracy, and malformed input. The separate UI check verifies the processing/review workflow.
+The 21 audio checks cover bypass preservation, RMS normalization, compression, stereo balance, peak protection, silence detection, padding, restoring unchecked cuts, overlapping cuts, basic breath heuristics, cancellation, whole-recording removal rejection, WAV roundtrip metadata, quantization accuracy, and malformed input. Five radio checks verify format preservation, bounded output, stereo behavior, silence, and strong dynamic compression. The separate UI check verifies the processing/review workflow and toggling the radio effect on and off.
 
 The existing `Test-results.txt` records a successful run of these checks. Synthetic tests verify selected mechanics; they do not measure breath detection accuracy on real speech or establish audible quality.
 

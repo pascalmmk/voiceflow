@@ -19,6 +19,15 @@ public static class Tests
             var tone = Tone(2, .2f, 2);
             var bypass = Dsp.Process(tone, off, [], default);
             Check(tone.Samples.SequenceEqual(bypass.Audio.Samples), "Bypass preserves every sample and channel");
+            var radio = Dsp.Process(tone, off with { RetroRadio = true }, [], default).Audio;
+            Check(radio.Frames == tone.Frames && radio.Rate == tone.Rate && radio.Channels == tone.Channels && !radio.Samples.SequenceEqual(tone.Samples), "Radio changes timbre while preserving duration and format");
+            Check(radio.Samples.All(x => float.IsFinite(x) && Math.Abs(x) <= .86), "Radio output is finite and bounded without normalization");
+            Check(Enumerable.Range(0, radio.Frames).All(i => radio.Samples[i * 2] == -radio.Samples[i * 2 + 1]), "Radio preserves opposite-phase stereo without cancellation");
+            var silentRadio = Dsp.Process(new Audio(new float[16000], 16000, 1), off with { RetroRadio = true }, [], default);
+            Check(silentRadio.Audio.Samples.All(x => x == 0), "Radio does not introduce noise into silence");
+            var quietRadio = Dsp.Process(Tone(2, .08f), off with { RetroRadio = true }, [], default);
+            var loudRadio = Dsp.Process(Tone(2, .8f), off with { RetroRadio = true }, [], default);
+            Check(Math.Abs(loudRadio.RmsDb - quietRadio.RmsDb) < 5, "Radio strongly compresses a 20 dB input level difference");
             var normalized = Dsp.Process(tone, off with { Normalize = true }, [], default);
             Check(Math.Abs(normalized.RmsDb + 18) < .01, "RMS normalization reaches target");
             var compressed = Dsp.Process(Tone(2, .8f), off with { Compression = true }, [], default);

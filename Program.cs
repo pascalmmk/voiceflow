@@ -41,6 +41,7 @@ public sealed class MainForm : Form
     readonly CheckBox breaths = new() { Text = "Detect breaths (experimental)", Checked = true };
     readonly CheckBox compression = new() { Text = "Compress voice dynamics", Checked = true };
     readonly CheckBox normalize = new() { Text = "Normalize volume", Checked = true };
+    readonly CheckBox retroRadio = new() { Text = "Half-Life-style radio (heavy / gritty)", Checked = false };
     readonly NumericUpDown gate = Number(-70, -15, -42), minimum = Number(50, 2000, 180), padding = Number(0, 200, 35);
     readonly NumericUpDown strength = Number(0, 100, 40), threshold = Number(-40, -3, -20), ratio = Number(1, 10, 3);
     readonly NumericUpDown target = Number(-30, -8, -18);
@@ -83,6 +84,7 @@ public sealed class MainForm : Form
         AddCheck(settings, breaths); AddRow(settings, "Breath sensitivity", strength);
         AddCheck(settings, compression); AddRow(settings, "Compressor threshold (dBFS)", threshold); AddRow(settings, "Ratio (:1)", ratio);
         AddCheck(settings, normalize); AddRow(settings, "Target RMS (dBFS)", target);
+        AddCheck(settings, retroRadio);
         var review = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, Padding = new Padding(14, 0, 0, 0) };
         review.RowStyles.Add(new RowStyle(SizeType.Absolute, 72)); review.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); review.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         review.Controls.Add(new Label { Text = "REVIEW CUTS\nChecked sections will be removed. Select a cut to hear it with context. Quiet consonants may resemble breaths.", Dock = DockStyle.Fill }, 0, 0);
@@ -129,7 +131,7 @@ public sealed class MainForm : Form
         input.ValueChanged += (_, _) => SettingsChanged(); busyControls.Add(input); row.Controls.Add(input); parent.Controls.Add(row);
     }
     Settings Options() => new(silence.Checked, (double)gate.Value, (int)minimum.Value, (int)padding.Value, breaths.Checked,
-        (int)strength.Value, compression.Checked, (double)threshold.Value, (double)ratio.Value, normalize.Checked, (double)target.Value);
+        (int)strength.Value, compression.Checked, (double)threshold.Value, (double)ratio.Value, normalize.Checked, (double)target.Value, retroRadio.Checked);
     void SettingsChanged()
     {
         updating = true; cutList.Items.Clear(); candidates.Clear(); updating = false;
@@ -237,6 +239,15 @@ public sealed class MainForm : Form
         Wave.Save(exported, output);
         if (Wave.Read(exported).Frames != output.Frames) throw new Exception("UI result export failed.");
         File.Delete(exported);
+        var cleanSamples = output.Samples.ToArray();
+        retroRadio.Checked = true;
+        if (output != null || !Options().RetroRadio) throw new Exception("Radio checkbox did not update settings and invalidate output.");
+        await Process(false);
+        if (output == null || output.Frames != source.Frames || output.Samples.SequenceEqual(cleanSamples))
+            throw new Exception("Radio checkbox did not apply the effect.");
+        retroRadio.Checked = false;
+        await Process(false);
+        if (output == null || !output.Samples.SequenceEqual(cleanSamples)) throw new Exception("Disabling radio did not restore normal processing.");
         File.WriteAllText(logPath, "PASS UI analyze/process, cut review, stale result invalidation, reprocessing, and exported WAV roundtrip.");
     }
 }
